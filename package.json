@@ -1,0 +1,38 @@
+{
+	"name": "wiki-masters-api-client",
+	"version": "0.1.0",
+	"description": "Private typed Bun/TypeScript client for the WikiMasters API",
+	"keywords": [
+		"bun",
+		"typescript",
+		"api-client",
+		"wikimasters"
+	],
+	"module": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"type": "module",
+	"files": [
+		"src",
+		"README.md"
+	],
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"check": "bun run typecheck && bun test",
+		"test:api": "bun test ./tests/api.tests.ts",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"oxfmt": "0.56.0",
+		"oxlint": "1.58.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}
