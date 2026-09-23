@@ -8,6 +8,10 @@
 		"api-client",
 		"wikimasters"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/FRFlo/wm-api.git"
+	},
 	"module": "src/index.ts",
 	"exports": {
 		".": "./src/index.ts"

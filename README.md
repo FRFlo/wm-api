@@ -57,6 +57,13 @@ bun run test:api    # tests live en lecture seule, avec .env
 
 Les opérations mutantes ne sont pas exécutées automatiquement.
 
+## Contribution
+
+Le projet est privé. Consultez [CONTRIBUTING.md](CONTRIBUTING.md) avant toute
+modification et [SECURITY.md](SECURITY.md) pour signaler un problème de
+sécurité. Aucun secret, cookie ou donnée personnelle ne doit apparaître dans
+une issue, une pull request ou un commit.
+
 ## Structure
 
 ```text
