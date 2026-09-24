@@ -152,6 +152,8 @@ export type CollectionResponse = {
 	pendingTradeCardIds: string[];
 };
 export type MarketplaceLimitResponse = { sellingCount?: number; maxConcurrentAuctions?: number };
+export type MarketplaceAuctionResponse = { auction: Auction };
+export type CreateMarketplaceListingResponse = { auction_id: string };
 export type CardSalesResponse = {
 	wikipedia_title: string;
 	summary: Record<string, { average: number }>;

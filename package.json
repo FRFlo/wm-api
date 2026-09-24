@@ -26,6 +26,7 @@
 		"test": "bun test",
 		"check": "bun run typecheck && bun test",
 		"test:api": "bun test ./tests/api.tests.ts",
+		"report:collection": "bun run src/collection-report.ts",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
@@ -38,5 +39,8 @@
 	},
 	"peerDependencies": {
 		"typescript": "^5"
+	},
+	"dependencies": {
+		"effect": "^3.22.2"
 	}
 }

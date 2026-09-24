@@ -13,3 +13,11 @@ export class WikiMastersApiError extends Error {
 		this.details = details;
 	}
 }
+
+/** The server requires the user to complete its human-verification flow before opening a pack. */
+export class HumanVerificationRequiredError extends WikiMastersApiError {
+	constructor(status: number, details?: ApiRequestErrorDetails) {
+		super("WikiMasters requires human verification before opening a pack", status, details);
+		this.name = "HumanVerificationRequiredError";
+	}
+}

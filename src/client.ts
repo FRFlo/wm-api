@@ -9,11 +9,14 @@ import * as marketplace from "./resources/marketplace";
 import * as notifications from "./resources/notifications";
 import * as social from "./resources/social";
 import * as trades from "./resources/trades";
+import { JsonPackStateStore, type PackProfileState, type PackStateStore } from "./pack-state";
 import type { JsonValue } from "./json";
+import type { OpenPackResponse } from "./types";
+import { WikiMastersApiError } from "./errors";
 
 export type { AuthTokenParts, CookieValues } from "./auth";
 export { AUTH_COOKIE_NAMES } from "./auth";
-export { WikiMastersApiError } from "./errors";
+export { HumanVerificationRequiredError, WikiMastersApiError } from "./errors";
 export { normalizeApiValue } from "./normalize";
 export type { Fetcher, QueryValue } from "./transport";
 export type { JsonPrimitive, JsonValue } from "./json";
@@ -27,20 +30,31 @@ export type CreateTradeRequest = {
 	recipient_wikibidous?: number;
 };
 export type BidRequest = { amount?: number };
+export type CreateMarketplaceListingRequest = {
+	card_id: string;
+	base_amount: number;
+	duration_minutes: number;
+};
 export type VerifyHumanRequest = { website?: string };
 export type FriendActionRequest = { action?: string };
 export type CreateBattleRequest = { opponent_id?: string };
 export type AchievementCheckRequest = { event?: string };
 export type UpdateBattleRequest = { action?: string; card_ids?: string[] };
+export type PackProfileStateInput = Omit<PackProfileState, "updated_at">;
 
 export type RequestOptions = Omit<TransportOptions, "cookies"> & {
 	cookies?: CookieValues;
 	authTokenParts?: AuthTokenParts;
+	packStatePath?: string;
+	packStateStore?: PackStateStore;
 };
 
 /** Public facade. Endpoint implementations live under `src/resources`. */
 export class WikiMastersClient {
 	private readonly transport: ApiTransport;
+	private readonly packStateStore: PackStateStore;
+	private packState?: PackProfileState;
+	private packStateLoaded = false;
 
 	constructor(options: RequestOptions = {}) {
 		const cookies = {
@@ -53,6 +67,7 @@ export class WikiMastersClient {
 				: {}),
 		};
 		this.transport = new ApiTransport({ ...options, cookies });
+		this.packStateStore = options.packStateStore ?? new JsonPackStateStore(options.packStatePath);
 	}
 
 	get baseUrl(): string {
@@ -66,6 +81,28 @@ export class WikiMastersClient {
 	}
 	setCookies(cookies: CookieValues): void {
 		this.transport.setCookies(cookies);
+	}
+	clearCache(): Promise<void> {
+		return this.transport.clearCache();
+	}
+	async getPackProfileState(): Promise<PackProfileState | undefined> {
+		if (!this.packStateLoaded) {
+			this.packState = await this.packStateStore.load();
+			this.packStateLoaded = true;
+		}
+		return this.packState;
+	}
+	async setPackProfileState(state: PackProfileStateInput): Promise<PackProfileState> {
+		const next = { ...state, updated_at: new Date() };
+		this.packState = next;
+		this.packStateLoaded = true;
+		await this.packStateStore.save(next);
+		return next;
+	}
+	private async updatePackProfileState(
+		state: Partial<PackProfileStateInput>,
+	): Promise<PackProfileState> {
+		return this.setPackProfileState({ ...(await this.getPackProfileState()), ...state });
 	}
 	request<T = JsonValue>(
 		path: string,
@@ -84,11 +121,36 @@ export class WikiMastersClient {
 	updateNotifications(body: JsonValue = {}) {
 		return notifications.updateNotifications(this.transport, body);
 	}
-	verifyHuman(body: VerifyHumanRequest) {
-		return economy.verifyHuman(this.transport, body);
+	async verifyHuman(body: VerifyHumanRequest) {
+		const response = await economy.verifyHuman(this.transport, body);
+		if (response.pack_human_verified_at !== undefined)
+			await this.updatePackProfileState({
+				pack_human_verified_at: response.pack_human_verified_at,
+			});
+		return response;
 	}
-	openPack() {
-		return economy.openPack(this.transport);
+	async openPack(): Promise<OpenPackResponse> {
+		try {
+			const response = await economy.openPack(this.transport);
+			await this.updatePackProfileState({
+				packs_remaining: response.packs_remaining,
+				packs_last_regen_at: response.packs_last_regen_at,
+			});
+			return response;
+		} catch (error) {
+			if (
+				error instanceof WikiMastersApiError &&
+				typeof error.details === "object" &&
+				error.details !== null &&
+				"human_verification_required" in error.details &&
+				error.details.human_verification_required === true
+			) {
+				await this.updatePackProfileState({ pack_human_verified_at: null });
+				await this.verifyHuman({ website: "" });
+				return this.openPack();
+			}
+			throw error;
+		}
 	}
 	checkout() {
 		return economy.checkout(this.transport);
@@ -107,6 +169,15 @@ export class WikiMastersClient {
 	}
 	getMarketplaceItem(id: string) {
 		return marketplace.getMarketplaceItem(this.transport, id);
+	}
+	getMarketplaceLimits() {
+		return marketplace.getMarketplaceLimits(this.transport);
+	}
+	createMarketplaceListing(body: CreateMarketplaceListingRequest) {
+		return marketplace.createMarketplaceListing(this.transport, body);
+	}
+	cancelMarketplaceListing(id: string) {
+		return marketplace.cancelMarketplaceListing(this.transport, id);
 	}
 	getCardSales(id: string, query?: { scope?: string }) {
 		return marketplace.getCardSales(this.transport, id, query);
